@@ -6,7 +6,6 @@ const StockAPI = (() => {
   const BASE_URL = 'https://qt.gtimg.cn/q=';
   const KLINE_URL = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get';
 
-  // Market prefix mapping
   function getMarketPrefix(code) {
     code = code.replace(/\s/g, '');
     if (code.startsWith('6') || code.startsWith('5')) return 'sh';
@@ -20,17 +19,30 @@ const StockAPI = (() => {
     return getMarketPrefix(code) + code;
   }
 
-  /**
-   * Fetch real-time quote for one or multiple stocks
-   * @param {string[]} codes - Array of stock codes like ['600519', '000858']
-   * @returns {Promise<Object>} Parsed stock data
-   */
+  // Script injection helper (avoids CORS)
+  function loadScript(url) {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('script timeout'));
+      }, 8000);
+      const script = document.createElement('script');
+      function cleanup() {
+        clearTimeout(timeout);
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+      script.src = url;
+      script.onload = function() { cleanup(); resolve(); };
+      script.onerror = function() { cleanup(); reject(new Error('script error')); };
+      document.head.appendChild(script);
+    });
+  }
+
+  // Fetch real-time quotes
   async function fetchQuotes(codes) {
     if (!codes || codes.length === 0) return {};
-
     const fullCodes = codes.map(c => getFullCode(c));
     const url = BASE_URL + fullCodes.join(',');
-
     try {
       const resp = await fetch(url);
       const text = await resp.text();
@@ -44,250 +56,118 @@ const StockAPI = (() => {
   function parseQuotes(text, codes) {
     const results = {};
     const lines = text.split('\n').filter(l => l.trim());
-
     for (const line of lines) {
       try {
         const match = line.match(/v_(\w+)="(.+)"/);
         if (!match) continue;
-
-        const fullCode = match[1];
         const data = match[2];
         const parts = data.split('~');
-
         if (parts.length < 50) continue;
-
-        const code = parts[2];
-        const name = parts[1];
-        const currentPrice = parseFloat(parts[3]) || 0;
-        const prevClose = parseFloat(parts[4]) || 0;
-        const open = parseFloat(parts[5]) || 0;
-        const volume = parseFloat(parts[6]) || 0; // 手
-        const buy1 = parseFloat(parts[9]) || 0;
-        const sell1 = parseFloat(parts[19]) || 0;
-        const high = parseFloat(parts[33]) || 0;
-        const low = parseFloat(parts[34]) || 0;
-        const changeAmount = parseFloat(parts[31]) || 0;
-        const changePercent = parseFloat(parts[32]) || 0;
-        const turnoverRate = parseFloat(parts[38]) || 0;
-        const pe = parseFloat(parts[39]) || 0;
-        const amplitude = parseFloat(parts[43]) || 0;
-        const circulatingMarketCap = parseFloat(parts[44]) || 0;
-        const totalMarketCap = parseFloat(parts[45]) || 0;
-        const pb = parseFloat(parts[46]) || 0;
-
-        results[code] = {
-          code,
-          name,
-          fullCode,
-          currentPrice,
-          prevClose,
-          open,
-          high,
-          low,
-          volume,         // 成交量(手)
-          buy1,
-          sell1,
-          changeAmount,
-          changePercent,
-          turnoverRate,   // 换手率%
-          pe,             // 市盈率
-          amplitude,      // 振幅%
-          circulatingMarketCap,
-          totalMarketCap,
-          pb,             // 市净率
+        results[parts[2]] = {
+          code: parts[2],
+          name: parts[1],
+          fullCode: match[1],
+          currentPrice: parseFloat(parts[3]) || 0,
+          prevClose: parseFloat(parts[4]) || 0,
+          open: parseFloat(parts[5]) || 0,
+          high: parseFloat(parts[33]) || 0,
+          low: parseFloat(parts[34]) || 0,
+          volume: parseFloat(parts[6]) || 0,
+          changeAmount: parseFloat(parts[31]) || 0,
+          changePercent: parseFloat(parts[32]) || 0,
+          turnoverRate: parseFloat(parts[38]) || 0,
+          pe: parseFloat(parts[39]) || 0,
+          amplitude: parseFloat(parts[43]) || 0,
+          totalMarketCap: parseFloat(parts[45]) || 0,
+          pb: parseFloat(parts[46]) || 0,
           timestamp: Date.now()
         };
-      } catch (e) {
-        console.warn('Parse quote line error:', e);
-      }
+      } catch (e) { console.warn('Parse error:', e); }
     }
-
     return results;
   }
 
-  /**
-   * Fetch K-line data for technical indicators
-   * @param {string} code - Stock code
-   * @param {number} days - Number of days of history
-   */
-  async function fetchKline(code, days = 120) {
+  // Fetch K-line via script injection
+  async function fetchKline(code, days) {
+    days = days || 120;
     const fullCode = getFullCode(code);
     const market = fullCode.slice(0, 2);
     const pureCode = fullCode.slice(2);
-
+    const varName = 'kline_dayqfq';
     try {
-      const data = await new Promise((resolve, reject) => {
-        const varName = 'kline_dayqfq';
-        const timeout = setTimeout(() => {
-          cleanup();
-          reject(new Error('kline timeout'));
-        }, 8000);
-
-        function cleanup() {
-          clearTimeout(timeout);
-          delete window[varName];
-          if (script.parentNode) script.parentNode.removeChild(script);
-        }
-
-        window[varName] = null;
-        const script = document.createElement('script');
-        script.src = `${KLINE_URL}?_var=${varName}&param=${market}${pureCode},day,,,${days},qfq`;
-        script.onload = function() {
-          const result = window[varName];
-          cleanup();
-          resolve(result);
-        };
-        script.onerror = function() {
-          cleanup();
-          reject(new Error('kline script error'));
-        };
-        document.head.appendChild(script);
-      });
-
+      window[varName] = null;
+      await loadScript(KLINE_URL + '?_var=' + varName + '&param=' + market + pureCode + ',day,,,,' + days + ',qfq');
+      const data = window[varName];
+      delete window[varName];
       if (!data || data.code !== 0) return [];
-
-      const klineData = data?.data?.[pureCode];
+      const klineData = data.data && data.data[pureCode];
       if (!klineData) return [];
-
       const dayData = klineData.qfqday || klineData.day || [];
-
-      return dayData.map(d => ({
-        date: d[0],
-        open: parseFloat(d[1]),
-        close: parseFloat(d[2]),
-        high: parseFloat(d[3]),
-        low: parseFloat(d[4]),
-        volume: parseFloat(d[5])
-      }));
+      return dayData.map(function(d) {
+        return {
+          date: d[0],
+          open: parseFloat(d[1]),
+          close: parseFloat(d[2]),
+          high: parseFloat(d[3]),
+          low: parseFloat(d[4]),
+          volume: parseFloat(d[5])
+        };
+      });
     } catch (err) {
       console.error('Fetch kline error:', err);
       return [];
     }
   }
 
-  /**
-   * JSONP helper
-   */
-  function jsonp(url, callbackName) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error('JSONP timeout'));
-      }, 5000);
-
-      function cleanup() {
-        clearTimeout(timeout);
-        delete window[callbackName];
-        if (script.parentNode) script.parentNode.removeChild(script);
-      }
-
-      window[callbackName] = function(data) {
-        cleanup();
-        resolve(data);
-      };
-
-      script.src = url;
-      script.onerror = function() {
-        cleanup();
-        reject(new Error('JSONP error'));
-      };
-      document.head.appendChild(script);
-    });
-  }
-
-  /**
-   * Search stock by code or name
-   * Uses Sina suggest API via script injection (avoids CORS)
-   */
+  // Search via Tencent smartbox script injection
   async function searchStock(keyword) {
     try {
-      const result = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          cleanup();
-          reject(new Error('timeout'));
-        }, 5000);
-
-        function cleanup() {
-          clearTimeout(timeout);
-          delete window.suggestvalue;
-          if (script.parentNode) script.parentNode.removeChild(script);
-        }
-
-        const script = document.createElement('script');
-        script.charset = 'gbk';
-        script.src = `https://suggest3.sinajs.cn/suggest/type=11,12&key=${encodeURIComponent(keyword)}`;
-        script.onload = function() {
-          cleanup();
-          resolve(window.suggestvalue || '');
-        };
-        script.onerror = function() {
-          cleanup();
-          reject(new Error('script error'));
-        };
-        document.head.appendChild(script);
-      });
-
+      window.v_hint = null;
+      await loadScript('https://smartbox.gtimg.cn/s3/?v=2&q=' + encodeURIComponent(keyword) + '&t=all');
+      var result = window.v_hint || '';
+      delete window.v_hint;
       if (!result) return [];
-
-      const items = result.split(';').filter(s => s.trim());
-      const results = [];
-
-      for (const item of items) {
-        const parts = item.split(',');
+      var items = result.split('^');
+      var results = [];
+      for (var i = 0; i < items.length; i++) {
+        var parts = items[i].split('~');
         if (parts.length < 4) continue;
-
-        const marketCode = parts[0]; // sh600519
-        const code = parts[2];       // 600510
-        const name = parts[4] || parts[5] || ''; // 贵州茅台
-
-        // Only include sh/sz stocks
-        if (marketCode.startsWith('sh') || marketCode.startsWith('sz')) {
-          if (code && code.length === 6) {
-            results.push({
-              code: code,
-              name: name,
-              market: marketCode.slice(0, 2)
-            });
-          }
+        var market = parts[0];
+        var code = parts[1];
+        var name = parts[2];
+        var type = parts[3];
+        if ((market === 'sh' || market === 'sz') && type && type.indexOf('GP') === 0) {
+          results.push({ code: code, name: name, market: market });
         }
       }
-
       return results.slice(0, 10);
     } catch (err) {
       console.error('Search error:', err);
-      // Fallback: if user typed 6 digits, treat as stock code directly
       if (/^\d{6}$/.test(keyword)) {
-        const prefix = keyword.startsWith('6') || keyword.startsWith('5') ? 'sh' : 'sz';
+        var prefix = keyword.charAt(0) === '6' || keyword.charAt(0) === '5' ? 'sh' : 'sz';
         return [{ code: keyword, name: '', market: prefix }];
       }
       return [];
     }
   }
 
-  /**
-   * Format volume for display
-   */
   function formatVolume(vol) {
     if (vol >= 10000) return (vol / 10000).toFixed(2) + '万手';
     return vol.toFixed(0) + '手';
   }
 
-  /**
-   * Format market cap
-   */
   function formatMarketCap(cap) {
     if (cap >= 10000) return (cap / 10000).toFixed(0) + '亿';
     return cap.toFixed(0) + '万';
   }
 
   return {
-    fetchQuotes,
-    fetchKline,
-    searchStock,
-    formatVolume,
-    formatMarketCap,
-    getFullCode,
-    getMarketPrefix
+    fetchQuotes: fetchQuotes,
+    fetchKline: fetchKline,
+    searchStock: searchStock,
+    formatVolume: formatVolume,
+    formatMarketCap: formatMarketCap,
+    getFullCode: getFullCode,
+    getMarketPrefix: getMarketPrefix
   };
 })();
