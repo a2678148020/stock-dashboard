@@ -236,7 +236,7 @@ const App = (() => {
     return '<div class="stock-card ' + changeDir + '" data-code="' + holding.code + '">' +
       '<div class="card-header">' +
         '<div>' +
-          '<div class="card-name">' + q.name + '</div>' +
+          '<div class="card-name">' + (holding.name || q.name) + '</div>' +
           '<div class="card-code">' + q.code + '</div>' +
         '</div>' +
         '<div>' +
@@ -293,7 +293,7 @@ const App = (() => {
     var kdj = data.kdj;
     var rsi = data.rsi;
 
-    $('#detailTitle').textContent = q.name + ' (' + q.code + ')';
+    $('#detailTitle').textContent = (holdings.find(function(h){return h.code===code;})||{}).name || q.name + ' (' + q.code + ')';
 
     var changeColor = q.changePercent > 0 ? 'text-green' : q.changePercent < 0 ? 'text-red' : 'text-muted';
     var changeSign = q.changePercent > 0 ? '+' : '';
@@ -445,12 +445,33 @@ const App = (() => {
     }
 
     errorEl.textContent = '';
-    Storage.addHolding({ code: code });
+
+    // Fetch stock name from smartbox API
+    var stockName = '';
+    try {
+      window.v_hint = null;
+      await new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://smartbox.gtimg.cn/s3/?v=2&q=' + code + '&t=all';
+        s.onload = function() { resolve(); };
+        s.onerror = function() { resolve(); };
+        document.head.appendChild(s);
+        setTimeout(resolve, 3000);
+      });
+      var hint = window.v_hint || '';
+      delete window.v_hint;
+      if (hint) {
+        var parts = hint.split('^')[0].split('~');
+        if (parts.length >= 3) stockName = parts[2];
+      }
+    } catch(e) {}
+
+    Storage.addHolding({ code: code, name: stockName });
     holdings = Storage.getHoldings();
     codeInput.value = '';
     codeInput.dataset.selectedCode = '';
     hideModal('modalAdd');
-    showToast('已添加 ' + code, 'success');
+    showToast('已添加 ' + (stockName || code), 'success');
     refreshAll();
   }
 
