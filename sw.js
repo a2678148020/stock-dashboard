@@ -1,56 +1,43 @@
-const CACHE_NAME = 'stock-dashboard-v2';
+const CACHE_NAME = 'stock-dashboard-v3';
 const ASSETS = [
   './',
   './index.html',
-  './css/style.css',
-  './js/api.js',
-  './js/indicators.js',
-  './js/risk-engine.js',
-  './js/storage.js',
-  './js/app.js',
   './manifest.json'
 ];
 
-// Install: cache all static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
+self.addEventListener('install', function(event) {
+  event.waitUntil(caches.open(CACHE_NAME).then(function(cache) { return cache.addAll(ASSETS); }));
   self.skipWaiting();
 });
 
-// Activate: clean old caches
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', function(event) {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.filter(function(k) { return k !== CACHE_NAME; }).map(function(k) { return caches.delete(k); }));
+    })
   );
   self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for assets
-self.addEventListener('fetch', (event) => {
-  const url = event.request.url;
+self.addEventListener('fetch', function(event) {
+  var url = event.request.url;
 
-  // API requests: network only (don't cache stock data)
-  if (url.includes('qt.gtimg.cn') || url.includes('ifzq.gtimg.cn') || url.includes('smartbox.gtimg.cn')) {
+  // API requests: network only
+  if (url.indexOf('qt.gtimg.cn') >= 0 || url.indexOf('ifzq.gtimg.cn') >= 0 || url.indexOf('smartbox.gtimg.cn') >= 0 || url.indexOf('sinajs.cn') >= 0) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Static assets: cache first, network fallback
+  // JS/CSS files: network first (no cache)
+  if (url.indexOf('.js') >= 0 || url.indexOf('.css') >= 0) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // HTML and other assets: cache first
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        // Cache new requests
-        if (response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      });
+    caches.match(event.request).then(function(cached) {
+      return cached || fetch(event.request);
     })
   );
 });
