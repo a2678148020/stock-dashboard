@@ -87,7 +87,7 @@ const StockAPI = (() => {
     var fullCode = getFullCode(code);
     var market = fullCode.slice(0, 2);
     var pureCode = fullCode.slice(2);
-    var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,,' + days + ',qfq';
+    var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,' + days + ',qfq';
 
     // Method 1: script injection
     try {
