@@ -11,7 +11,7 @@
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="manifest.json">
 <title>股票看板</title>
-<script>if(localStorage.getItem("sw_version")!=="v6"){localStorage.setItem("sw_version","v6");location.reload(true)}</script>
+<script>if(localStorage.getItem("sw_version")!=="v7"){localStorage.setItem("sw_version","v7");location.reload(true)}</script>
 <style>
 /* === Reset & Base === */
 *, *::before, *::after {
@@ -779,6 +779,7 @@ body {
 
 
 
+
 <div id="app">
   <header class="app-header">
     <div class="header-left"><h1 class="logo">📊 股票看板</h1></div>
@@ -854,6 +855,7 @@ body {
     <div class="modal-footer"><button class="btn btn-primary" id="btnSaveSettings">保存</button></div>
   </div>
 </div>
+
 
 
 
@@ -950,7 +952,7 @@ const StockAPI = (() => {
     var fullCode = getFullCode(code);
     var market = fullCode.slice(0, 2);
     var pureCode = fullCode.slice(2);
-    var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,,' + days + ',qfq';
+    var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,' + days + ',qfq';
 
     // Method 1: script injection
     try {
