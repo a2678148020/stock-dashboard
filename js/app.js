@@ -367,7 +367,7 @@ const App = (() => {
     var hints = $('#searchHints');
     if (keyword.length < 1) { hideSearchHints(); return; }
 
-    // Show a simple hint for 6-digit codes
+    // For 6-digit codes, show click-to-add
     if (/^\d{6}$/.test(keyword)) {
       hints.innerHTML = '<div class="hint-item" data-code="' + keyword + '">' +
         '<span class="hint-code">' + keyword + '</span>' +
@@ -383,7 +383,49 @@ const App = (() => {
       return;
     }
 
-    hints.innerHTML = '<div class="hint-item"><span class="hint-name">请输入6位股票代码</span></div>';
+    // For names/keywords, try Tencent smartbox API
+    try {
+      window.v_hint = null;
+      var script = document.createElement('script');
+      script.src = 'https://smartbox.gtimg.cn/s3/?v=2&q=' + encodeURIComponent(keyword) + '&t=all';
+      script.onload = function() {
+        var result = window.v_hint || '';
+        delete window.v_hint;
+        if (script.parentNode) script.parentNode.removeChild(script);
+        if (!result) { showNoResult(hints); return; }
+        var items = result.split('^');
+        var html = '';
+        for (var i = 0; i < items.length && i < 8; i++) {
+          var parts = items[i].split('~');
+          if (parts.length >= 3 && (parts[0] === 'sh' || parts[0] === 'sz')) {
+            html += '<div class="hint-item" data-code="' + parts[1] + '">' +
+              '<span class="hint-code">' + parts[1] + '</span>' +
+              '<span class="hint-name">' + parts[2] + '</span></div>';
+          }
+        }
+        if (!html) { showNoResult(hints); return; }
+        hints.innerHTML = html;
+        hints.querySelectorAll('.hint-item').forEach(function(item) {
+          item.addEventListener('click', function() {
+            $('#inputCode').value = item.dataset.code;
+            $('#inputCode').dataset.selectedCode = item.dataset.code;
+            hideSearchHints();
+          });
+        });
+        hints.classList.add('visible');
+      };
+      script.onerror = function() {
+        if (script.parentNode) script.parentNode.removeChild(script);
+        showNoResult(hints);
+      };
+      document.head.appendChild(script);
+    } catch(e) {
+      showNoResult(hints);
+    }
+  }
+
+  function showNoResult(hints) {
+    hints.innerHTML = '<div class="hint-item"><span class="hint-name">未找到，请输入6位代码</span></div>';
     hints.classList.add('visible');
   }
 
