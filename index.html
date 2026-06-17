@@ -6,8 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0f1923">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="manifest" href="manifest.json">
 <title>股票看板</title>
+<script>if(localStorage.getItem("sw_version")!=="v5"){localStorage.setItem("sw_version","v5");location.reload(true)}</script>
 <style>
 /* === Reset & Base === */
 *, *::before, *::after {
@@ -773,6 +777,7 @@ body {
 
 
 
+
 <div id="app">
   <header class="app-header">
     <div class="header-left"><h1 class="logo">📊 股票看板</h1></div>
@@ -848,6 +853,7 @@ body {
     <div class="modal-footer"><button class="btn btn-primary" id="btnSaveSettings">保存</button></div>
   </div>
 </div>
+
 
 
 
