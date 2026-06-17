@@ -789,28 +789,26 @@ body {
       <!-- Summary Bar -->
       <section class="summary-bar" id="summaryBar">
         <div class="summary-item">
-          <span class="summary-label">总市值</span>
+          <span class="summary-label">持仓数</span>
           <span class="summary-value" id="totalValue">--</span>
         </div>
         <div class="summary-item">
-          <span class="summary-label">总盈亏</span>
+          <span class="summary-label">上涨</span>
           <span class="summary-value" id="totalPnl">--</span>
         </div>
         <div class="summary-item">
-          <span class="summary-label">今日盈亏</span>
+          <span class="summary-label">下跌</span>
           <span class="summary-value" id="todayPnl">--</span>
         </div>
         <div class="summary-item">
-          <span class="summary-label">持仓数</span>
-          <span class="summary-value" id="holdingsCount">0</span>
+          <span class="summary-label">平盘</span>
+          <span class="summary-value" id="holdingsCount">--</span>
         </div>
       </section>
 
       <!-- Filter Tabs -->
       <section class="filter-tabs">
         <button class="tab active" data-filter="all">全部</button>
-        <button class="tab" data-filter="profit">盈利</button>
-        <button class="tab" data-filter="loss">亏损</button>
         <button class="tab" data-filter="alert">⚠️ 预警</button>
       </section>
 
@@ -838,20 +836,8 @@ body {
       <div class="modal-body">
         <div class="form-group">
           <label>股票代码</label>
-          <input type="text" id="inputCode" placeholder="如: 600519, 000858, 300750" autocomplete="off">
+          <input type="text" id="inputCode" placeholder="输入代码或名称搜索，如 600519、茅台" autocomplete="off">
           <div class="search-hints" id="searchHints"></div>
-        </div>
-        <div class="form-group">
-          <label>持有数量（股）</label>
-          <input type="number" id="inputShares" placeholder="100" min="0">
-        </div>
-        <div class="form-group">
-          <label>持仓成本价（元）</label>
-          <input type="number" id="inputCost" placeholder="0.00" step="0.01" min="0">
-        </div>
-        <div class="form-group">
-          <label>备注（可选）</label>
-          <input type="text" id="inputNote" placeholder="自选标签...">
         </div>
         <div class="form-error" id="formError"></div>
       </div>
