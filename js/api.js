@@ -96,7 +96,7 @@ const StockAPI = (() => {
     const varName = 'kline_dayqfq';
     try {
       window[varName] = null;
-      await loadScript(KLINE_URL + '?_var=' + varName + '&param=' + market + pureCode + ',day,,,,' + days + ',qfq');
+      await loadScript(KLINE_URL + '?_var=' + varName + '&param=' + market + pureCode + ',day,,,' + days + ',qfq');
       const data = window[varName];
       delete window[varName];
       if (!data || data.code !== 0) return [];
