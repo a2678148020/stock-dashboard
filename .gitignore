@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+*.log
+android-build/
+build-apk.js
+generate-icons.js
+serve.py
+stockdashboard.keystore
