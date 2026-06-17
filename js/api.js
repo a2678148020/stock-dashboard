@@ -179,31 +179,57 @@ const StockAPI = (() => {
 
   /**
    * Search stock by code or name
-   * Uses JSONP to avoid CORS issues
+   * Uses Sina suggest API via script injection (avoids CORS)
    */
   async function searchStock(keyword) {
     try {
-      const cb = '_stockSearchCb_' + Date.now();
-      const url = `https://smartbox.gtimg.cn/s3/?v=2&q=${encodeURIComponent(keyword)}&t=all&cb=${cb}`;
-      const data = await jsonp(url, cb);
+      const result = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('timeout'));
+        }, 5000);
 
-      if (!data || !data[0]) return [];
+        function cleanup() {
+          clearTimeout(timeout);
+          delete window.suggestvalue;
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
 
+        const script = document.createElement('script');
+        script.src = `https://suggest3.sinajs.cn/suggest/type=11,12&key=${encodeURIComponent(keyword)}`;
+        script.onload = function() {
+          cleanup();
+          resolve(window.suggestvalue || '');
+        };
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('script error'));
+        };
+        document.head.appendChild(script);
+      });
+
+      if (!result) return [];
+
+      const items = result.split(';').filter(s => s.trim());
       const results = [];
-      const items = data[0].split('^');
 
       for (const item of items) {
-        const parts = item.split('~');
-        if (parts.length < 5) continue;
+        const parts = item.split(',');
+        if (parts.length < 4) continue;
 
-        const market = parts[0]; // sh/sz
-        const code = parts[1];
-        const name = parts[2];
-        const type = parts[3]; // GP=股票
+        const marketCode = parts[0]; // sh600519
+        const code = parts[2];       // 600510
+        const name = parts[4] || parts[5] || ''; // 贵州茅台
 
-        // Only include A-share stocks
-        if (type === 'GP' && (market === 'sh' || market === 'sz')) {
-          results.push({ code, name, market });
+        // Only include sh/sz stocks
+        if (marketCode.startsWith('sh') || marketCode.startsWith('sz')) {
+          if (code && code.length === 6) {
+            results.push({
+              code: code,
+              name: name,
+              market: marketCode.slice(0, 2)
+            });
+          }
         }
       }
 
