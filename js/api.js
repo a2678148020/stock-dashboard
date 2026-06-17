@@ -115,21 +115,40 @@ const StockAPI = (() => {
     const market = fullCode.slice(0, 2);
     const pureCode = fullCode.slice(2);
 
-    const url = `${KLINE_URL}?_var=kline_dayqfq&param=${market}${pureCode},day,,,${days},qfq`;
-
     try {
-      const resp = await fetch(url);
-      const text = await resp.text();
-      // Extract JSON from variable assignment
-      const jsonMatch = text.match(/=(\{.+\})/s);
-      if (!jsonMatch) return [];
+      const data = await new Promise((resolve, reject) => {
+        const varName = 'kline_dayqfq';
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('kline timeout'));
+        }, 8000);
 
-      const data = JSON.parse(jsonMatch[1]);
+        function cleanup() {
+          clearTimeout(timeout);
+          delete window[varName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[varName] = null;
+        const script = document.createElement('script');
+        script.src = `${KLINE_URL}?_var=${varName}&param=${market}${pureCode},day,,,${days},qfq`;
+        script.onload = function() {
+          const result = window[varName];
+          cleanup();
+          resolve(result);
+        };
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('kline script error'));
+        };
+        document.head.appendChild(script);
+      });
+
+      if (!data || data.code !== 0) return [];
+
       const klineData = data?.data?.[pureCode];
-
       if (!klineData) return [];
 
-      // Try qfqday first, then day
       const dayData = klineData.qfqday || klineData.day || [];
 
       return dayData.map(d => ({
@@ -196,6 +215,7 @@ const StockAPI = (() => {
         }
 
         const script = document.createElement('script');
+        script.charset = 'gbk';
         script.src = `https://suggest3.sinajs.cn/suggest/type=11,12&key=${encodeURIComponent(keyword)}`;
         script.onload = function() {
           cleanup();
