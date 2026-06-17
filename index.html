@@ -2352,7 +2352,7 @@ self.addEventListener('fetch', function(event) {
 });
 
 </script>
-<script>if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister()})})}
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister()})});if(caches)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})})}
 </script>
 </body>
 </html>
