@@ -367,31 +367,46 @@ const App = (() => {
     var hints = $('#searchHints');
     if (keyword.length < 1) { hideSearchHints(); return; }
 
-    var results = await StockAPI.searchStock(keyword);
-    if (results.length === 0) {
-      hints.innerHTML = '<div class="hint-item"><span class="hint-name">未找到匹配股票</span></div>';
+    // If 6 digits, try to fetch quote directly
+    if (/^\d{6}$/.test(keyword)) {
+      try {
+        var quotes = await StockAPI.fetchQuotes([keyword]);
+        if (quotes[keyword]) {
+          var q = quotes[keyword];
+          hints.innerHTML = '<div class="hint-item" data-code="' + keyword + '" data-name="' + q.name + '">' +
+            '<span class="hint-code">' + keyword + '</span>' +
+            '<span class="hint-name">' + q.name + ' ' + q.currentPrice.toFixed(2) + ' ' +
+            (q.changePercent >= 0 ? '+' : '') + q.changePercent.toFixed(2) + '%</span></div>';
+          hints.querySelectorAll('.hint-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+              $('#inputCode').value = item.dataset.code + ' ' + item.dataset.name;
+              $('#inputCode').dataset.selectedCode = item.dataset.code;
+              hideSearchHints();
+            });
+          });
+          hints.classList.add('visible');
+          return;
+        }
+      } catch(e) { console.error(e); }
+    }
+
+    // Fallback: show the code as-is
+    if (/^\d{6}$/.test(keyword)) {
+      hints.innerHTML = '<div class="hint-item" data-code="' + keyword + '" data-name="">' +
+        '<span class="hint-code">' + keyword + '</span>' +
+        '<span class="hint-name">点击添加</span></div>';
+      hints.querySelectorAll('.hint-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+          $('#inputCode').value = item.dataset.code;
+          $('#inputCode').dataset.selectedCode = item.dataset.code;
+          hideSearchHints();
+        });
+      });
       hints.classList.add('visible');
       return;
     }
 
-    hints.innerHTML = results.map(function(r) {
-      return '<div class="hint-item" data-code="' + r.code + '" data-name="' + r.name + '">' +
-        '<span class="hint-code">' + r.code + '</span>' +
-        '<span class="hint-name">' + r.name + '</span></div>';
-    }).join('');
-
-    hints.querySelectorAll('.hint-item').forEach(function(item) {
-      item.addEventListener('click', function() {
-        var code = item.dataset.code;
-        var name = item.dataset.name;
-        if (code && name) {
-          $('#inputCode').value = code + ' ' + name;
-          $('#inputCode').dataset.selectedCode = code;
-          hideSearchHints();
-        }
-      });
-    });
-
+    hints.innerHTML = '<div class="hint-item"><span class="hint-name">请输入6位股票代码</span></div>';
     hints.classList.add('visible');
   }
 
@@ -401,31 +416,49 @@ const App = (() => {
 
   async function handleAddStock() {
     var codeInput = $('#inputCode');
-    var code = (codeInput.dataset.selectedCode || codeInput.value).trim().replace(/\s.*/, '');
+    var code = (codeInput.dataset.selectedCode || codeInput.value).trim();
+    code = code.replace(/\s.*/, '').replace(/[^0-9]/g, '');
     var errorEl = $('#formError');
 
-    if (!code || code.length < 6) {
-      errorEl.textContent = '请输入有效的股票代码';
+    if (!code || code.length !== 6) {
+      errorEl.textContent = '请输入6位股票代码';
       return;
     }
 
-    errorEl.textContent = '验证中...';
-    var quotes = await StockAPI.fetchQuotes([code]);
-    if (!quotes[code]) {
-      errorEl.textContent = '未找到该股票，请检查代码';
-      return;
+    errorEl.textContent = '添加中...';
+    try {
+      var quotes = await StockAPI.fetchQuotes([code]);
+      if (quotes[code]) {
+        Storage.addHolding({ code: code });
+        holdings = Storage.getHoldings();
+        codeInput.value = '';
+        codeInput.dataset.selectedCode = '';
+        errorEl.textContent = '';
+        hideModal('modalAdd');
+        showToast('已添加 ' + quotes[code].name, 'success');
+        refreshAll();
+      } else {
+        // Try adding anyway (maybe market is closed)
+        Storage.addHolding({ code: code });
+        holdings = Storage.getHoldings();
+        codeInput.value = '';
+        codeInput.dataset.selectedCode = '';
+        errorEl.textContent = '';
+        hideModal('modalAdd');
+        showToast('已添加 ' + code, 'success');
+        refreshAll();
+      }
+    } catch(e) {
+      // Add anyway on error
+      Storage.addHolding({ code: code });
+      holdings = Storage.getHoldings();
+      codeInput.value = '';
+      codeInput.dataset.selectedCode = '';
+      errorEl.textContent = '';
+      hideModal('modalAdd');
+      showToast('已添加 ' + code, 'success');
+      refreshAll();
     }
-
-    Storage.addHolding({ code: code });
-    holdings = Storage.getHoldings();
-
-    codeInput.value = '';
-    codeInput.dataset.selectedCode = '';
-    errorEl.textContent = '';
-
-    hideModal('modalAdd');
-    showToast('已添加 ' + quotes[code].name, 'success');
-    refreshAll();
   }
 
   function deleteHolding(code) {
