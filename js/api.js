@@ -82,40 +82,29 @@ const StockAPI = (() => {
   }
 
   // Fetch K-line: try script injection, fallback to fetch
+  // Fetch K-line data (CORS-enabled API)
   async function fetchKline(code, days) {
     days = days || 120;
     var fullCode = getFullCode(code);
     var market = fullCode.slice(0, 2);
     var pureCode = fullCode.slice(2);
     var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,' + days + ',qfq';
-
-    // Method 1: script injection
-    try {
-      window.kline_dayqfq = null;
-      await loadScript(url);
-      var data = window.kline_dayqfq;
-      delete window.kline_dayqfq;
-      if (data && data.code === 0 && data.data && data.data[pureCode]) {
-        var dayData = data.data[pureCode].qfqday || data.data[pureCode].day || [];
-        if (dayData.length > 0) return parseKlineData(dayData);
-      }
-    } catch (e) { console.warn('Script kline failed:', e); }
-
-    // Method 2: fetch
     try {
       var resp = await fetch(url);
       var text = await resp.text();
       var match = text.match(/=(\{.+\})/s);
-      if (match) {
-        var fdata = JSON.parse(match[1]);
-        if (fdata.code === 0 && fdata.data && fdata.data[pureCode]) {
-          var fdayData = fdata.data[pureCode].qfqday || fdata.data[pureCode].day || [];
-          if (fdayData.length > 0) return parseKlineData(fdayData);
-        }
-      }
-    } catch (e) { console.warn('Fetch kline failed:', e); }
-
-    return [];
+      if (!match) return [];
+      var data = JSON.parse(match[1]);
+      if (data.code !== 0 || !data.data || !data.data[pureCode]) return [];
+      var klineData = data.data[pureCode];
+      var dayData = klineData.qfqday || klineData.day || [];
+      return dayData.map(function(d) {
+        return { date: d[0], open: parseFloat(d[1]), close: parseFloat(d[2]), high: parseFloat(d[3]), low: parseFloat(d[4]), volume: parseFloat(d[5]) };
+      });
+    } catch (e) {
+      console.error('Kline fetch error:', e);
+      return [];
+    }
   }
 
   function parseKlineData(dayData) {
