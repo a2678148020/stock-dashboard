@@ -303,8 +303,8 @@ body {
 }
 
 /* Card color coding */
-.stock-card.up { border-left: 3px solid var(--green); }
-.stock-card.down { border-left: 3px solid var(--red); }
+.stock-card.up { border-left: 3px solid var(--red); }
+.stock-card.down { border-left: 3px solid var(--green); }
 .stock-card.flat { border-left: 3px solid var(--text-muted); }
 
 /* === Empty State === */
