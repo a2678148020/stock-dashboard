@@ -174,7 +174,7 @@ const App = (() => {
     }
 
     var changeDir = q.changePercent > 0 ? 'up' : q.changePercent < 0 ? 'down' : 'flat';
-    var changeColor = q.changePercent > 0 ? 'text-green' : q.changePercent < 0 ? 'text-red' : 'text-muted';
+    var changeColor = q.changePercent > 0 ? 'text-red' : q.changePercent < 0 ? 'text-green' : 'text-muted';
     var changeSign = q.changePercent > 0 ? '+' : '';
 
     // Indicators
@@ -184,7 +184,7 @@ const App = (() => {
     var indicatorsHtml = '';
 
     if (macd && macd.latestDif !== null) {
-      var macdColor = macd.latestDif > macd.latestDea ? 'var(--green)' : 'var(--red)';
+      var macdColor = macd.latestDif > macd.latestDea ? 'var(--red)' : 'var(--green)';
       var macdLabel = macd.goldenCross ? '🟢 金叉' : macd.deathCross ? '🔴 死叉' : '';
       indicatorsHtml += '<div class="indicator">' +
         '<span class="indicator-dot" style="background:' + macdColor + '"></span>' +
@@ -195,7 +195,7 @@ const App = (() => {
     }
 
     if (kdj && kdj.latestK !== null) {
-      var kdjColor = kdj.latestK > kdj.latestD ? 'var(--green)' : 'var(--red)';
+      var kdjColor = kdj.latestK > kdj.latestD ? 'var(--red)' : 'var(--green)';
       var kdjLabel = kdj.overbought ? '⚠️ 超买' : kdj.oversold ? '💡 超卖' : '';
       indicatorsHtml += '<div class="indicator">' +
         '<span class="indicator-dot" style="background:' + kdjColor + '"></span>' +
@@ -277,9 +277,9 @@ const App = (() => {
 
     $('#totalValue').textContent = holdings.length + ' 只';
     $('#totalPnl').textContent = upCount + ' 涨';
-    $('#totalPnl').className = 'summary-value text-green';
+    $('#totalPnl').className = 'summary-value text-red';
     $('#todayPnl').textContent = downCount + ' 跌';
-    $('#todayPnl').className = 'summary-value text-red';
+    $('#todayPnl').className = 'summary-value text-green';
     $('#holdingsCount').textContent = flatCount + ' 平';
   }
 
@@ -295,7 +295,7 @@ const App = (() => {
 
     $('#detailTitle').textContent = (holdings.find(function(h){return h.code===code;})||{}).name || q.name + ' (' + q.code + ')';
 
-    var changeColor = q.changePercent > 0 ? 'text-green' : q.changePercent < 0 ? 'text-red' : 'text-muted';
+    var changeColor = q.changePercent > 0 ? 'text-red' : q.changePercent < 0 ? 'text-green' : 'text-muted';
     var changeSign = q.changePercent > 0 ? '+' : '';
 
     // Market data
@@ -321,7 +321,7 @@ const App = (() => {
     if (macd && macd.latestDif !== null) {
       indHtml += '<div class="detail-item"><span class="detail-label">MACD DIF</span><span class="detail-value">' + fmt(macd.latestDif) + '</span></div>';
       indHtml += '<div class="detail-item"><span class="detail-label">MACD DEA</span><span class="detail-value">' + fmt(macd.latestDea) + '</span></div>';
-      indHtml += '<div class="detail-item"><span class="detail-label">MACD 柱</span><span class="detail-value ' + (macd.latestMacd >= 0 ? 'text-green' : 'text-red') + '">' + fmt(macd.latestMacd) + '</span></div>';
+      indHtml += '<div class="detail-item"><span class="detail-label">MACD 柱</span><span class="detail-value ' + (macd.latestMacd >= 0 ? 'text-red' : 'text-green') + '">' + fmt(macd.latestMacd) + '</span></div>';
       indHtml += '<div class="detail-item"><span class="detail-label">MACD 信号</span><span class="detail-value">' + (macd.goldenCross ? '🟢 金叉' : macd.deathCross ? '🔴 死叉' : getTrendText(macd.trend)) + '</span></div>';
     }
     if (kdj && kdj.latestK !== null) {
