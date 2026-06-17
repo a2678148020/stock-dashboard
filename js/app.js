@@ -369,10 +369,9 @@ const App = (() => {
 
     // Show a simple hint for 6-digit codes
     if (/^\d{6}$/.test(keyword)) {
-      var prefix = keyword.charAt(0) === '6' || keyword.charAt(0) === '5' ? '上海' : '深圳';
       hints.innerHTML = '<div class="hint-item" data-code="' + keyword + '">' +
         '<span class="hint-code">' + keyword + '</span>' +
-        '<span class="hint-name">' + prefix + ' · 点击选择</span></div>';
+        '<span class="hint-name">✓ 点击添加</span></div>';
       hints.querySelectorAll('.hint-item').forEach(function(item) {
         item.addEventListener('click', function() {
           $('#inputCode').value = item.dataset.code;
