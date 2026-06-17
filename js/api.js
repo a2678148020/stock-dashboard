@@ -119,36 +119,52 @@ const StockAPI = (() => {
     }
   }
 
-  // Search via Tencent smartbox script injection
+  // Search: use quote API for codes, or try smartbox
   async function searchStock(keyword) {
+    keyword = keyword.trim();
+    var results = [];
+
+    // If it's a 6-digit code, try fetching quote directly
+    if (/^\d{6}$/.test(keyword)) {
+      try {
+        var quotes = await fetchQuotes([keyword]);
+        if (quotes[keyword]) {
+          var q = quotes[keyword];
+          return [{ code: keyword, name: q.name, market: getMarketPrefix(keyword) }];
+        }
+      } catch(e) {}
+
+      // Fallback: guess market
+      var prefix = keyword.charAt(0) === '6' || keyword.charAt(0) === '5' ? 'sh' : 'sz';
+      return [{ code: keyword, name: '', market: prefix }];
+    }
+
+    // If it's a name/keyword, try smartbox via script injection
     try {
       window.v_hint = null;
       await loadScript('https://smartbox.gtimg.cn/s3/?v=2&q=' + encodeURIComponent(keyword) + '&t=all');
-      var result = window.v_hint || '';
+      var hint = window.v_hint || '';
       delete window.v_hint;
-      if (!result) return [];
-      var items = result.split('^');
-      var results = [];
-      for (var i = 0; i < items.length; i++) {
-        var parts = items[i].split('~');
-        if (parts.length < 4) continue;
-        var market = parts[0];
-        var code = parts[1];
-        var name = parts[2];
-        var type = parts[3];
-        if ((market === 'sh' || market === 'sz') && type && type.indexOf('GP') === 0) {
-          results.push({ code: code, name: name, market: market });
+      if (hint) {
+        var items = hint.split('^');
+        for (var i = 0; i < items.length; i++) {
+          var parts = items[i].split('~');
+          if (parts.length >= 4) {
+            var market = parts[0];
+            var code = parts[1];
+            var name = parts[2];
+            var type = parts[3];
+            if ((market === 'sh' || market === 'sz') && type && type.indexOf('GP') === 0) {
+              results.push({ code: code, name: name, market: market });
+            }
+          }
         }
       }
-      return results.slice(0, 10);
-    } catch (err) {
-      console.error('Search error:', err);
-      if (/^\d{6}$/.test(keyword)) {
-        var prefix = keyword.charAt(0) === '6' || keyword.charAt(0) === '5' ? 'sh' : 'sz';
-        return [{ code: keyword, name: '', market: prefix }];
-      }
-      return [];
+    } catch(e) {
+      console.error('Smartbox search error:', e);
     }
+
+    return results.slice(0, 10);
   }
 
   function formatVolume(vol) {
