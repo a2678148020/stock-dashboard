@@ -147,21 +147,50 @@ const StockAPI = (() => {
   }
 
   /**
+   * JSONP helper
+   */
+  function jsonp(url, callbackName) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('JSONP timeout'));
+      }, 5000);
+
+      function cleanup() {
+        clearTimeout(timeout);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[callbackName] = function(data) {
+        cleanup();
+        resolve(data);
+      };
+
+      script.src = url;
+      script.onerror = function() {
+        cleanup();
+        reject(new Error('JSONP error'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
    * Search stock by code or name
-   * Uses a simplified approach - check common patterns
+   * Uses JSONP to avoid CORS issues
    */
   async function searchStock(keyword) {
-    // Use Tencent smartbox API
-    const url = `https://smartbox.gtimg.cn/s3/?v=2&q=${encodeURIComponent(keyword)}&t=all`;
-
     try {
-      const resp = await fetch(url);
-      const text = await resp.text();
-      const match = text.match(/v_hint="(.+)"/);
-      if (!match) return [];
+      const cb = '_stockSearchCb_' + Date.now();
+      const url = `https://smartbox.gtimg.cn/s3/?v=2&q=${encodeURIComponent(keyword)}&t=all&cb=${cb}`;
+      const data = await jsonp(url, cb);
 
-      const items = match[1].split('^');
+      if (!data || !data[0]) return [];
+
       const results = [];
+      const items = data[0].split('^');
 
       for (const item of items) {
         const parts = item.split('~');
@@ -181,6 +210,11 @@ const StockAPI = (() => {
       return results.slice(0, 10);
     } catch (err) {
       console.error('Search error:', err);
+      // Fallback: if user typed 6 digits, treat as stock code directly
+      if (/^\d{6}$/.test(keyword)) {
+        const prefix = keyword.startsWith('6') || keyword.startsWith('5') ? 'sh' : 'sz';
+        return [{ code: keyword, name: '', market: prefix }];
+      }
       return [];
     }
   }
