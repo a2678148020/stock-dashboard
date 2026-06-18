@@ -11,7 +11,7 @@
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="manifest.json">
 <title>股票看板</title>
-<script>if(localStorage.getItem("sw_version")!=="v8"){localStorage.setItem("sw_version","v8");location.reload(true)}</script>
+<script>if(localStorage.getItem("sw_version")!=="v9"){localStorage.setItem("sw_version","v9");location.reload(true)}</script>
 <style>
 /* === Reset & Base === */
 *, *::before, *::after {
@@ -774,6 +774,8 @@ body {
 </head>
 <body>
 
+<div id="debugOverlay" onclick="_showDebug()" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.9);color:#0f0;font-size:11px;padding:8px;z-index:9999;max-height:40vh;overflow-y:auto;font-family:monospace;"></div>
+
 
 
 
@@ -864,6 +866,8 @@ body {
 
 
 
+
+<script>window._debugLog=[];window._debug=function(m){_debugLog.push("["+new Date().toLocaleTimeString()+"] "+m);var e=document.getElementById("debugOverlay");if(e)e.innerHTML=_debugLog.slice(-15).join("<br>")};window._showDebug=function(){var e=document.getElementById("debugOverlay");if(e)e.style.display=e.style.display==="none"?"block":""};document.addEventListener("dblclick",function(){_showDebug()})</script>
 <script>
 /**
  * 股票数据 API 服务
@@ -909,8 +913,11 @@ const StockAPI = (() => {
     var fullCodes = codes.map(function(c) { return getFullCode(c); });
     var url = BASE_URL + fullCodes.join(',');
     try {
+      window._debug && _debug("Fetching kline: " + url);
       var resp = await fetch(url);
+      window._debug && _debug("Kline status: " + resp.status);
       var text = await resp.text();
+      window._debug && _debug("Kline response len: " + text.length);
       return parseQuotes(text);
     } catch (err) {
       console.error('Quotes error:', err);
@@ -951,14 +958,18 @@ const StockAPI = (() => {
   // Fetch K-line: try script injection, fallback to fetch
   // Fetch K-line data (CORS-enabled API)
   async function fetchKline(code, days) {
+    window._debug && _debug("fetchKline called: " + code);
     days = days || 120;
     var fullCode = getFullCode(code);
     var market = fullCode.slice(0, 2);
     var pureCode = fullCode.slice(2);
     var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,' + days + ',qfq';
     try {
+      window._debug && _debug("Fetching kline: " + url);
       var resp = await fetch(url);
+      window._debug && _debug("Kline status: " + resp.status);
       var text = await resp.text();
+      window._debug && _debug("Kline response len: " + text.length);
       var match = text.match(/=(\{.+\})/s);
       if (!match) return [];
       var data = JSON.parse(match[1]);
@@ -1871,6 +1882,7 @@ const App = (() => {
         var kline = Storage.getCachedKline(code);
         if (!kline) {
           kline = await StockAPI.fetchKline(code, 120);
+          _debug("Kline fetched for " + code + ": " + kline.length + " bars");
           if (kline.length > 0) Storage.setCachedKline(code, kline);
         }
 
