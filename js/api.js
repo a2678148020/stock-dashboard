@@ -86,32 +86,49 @@ const StockAPI = (() => {
 
   // Fetch K-line: try script injection, fallback to fetch
   // Fetch K-line data (CORS-enabled API)
+  // Fetch K-line data using XMLHttpRequest (more reliable on mobile)
   async function fetchKline(code, days) {
-    window._debug && _debug("fetchKline called: " + code);
     days = days || 120;
     var fullCode = getFullCode(code);
     var market = fullCode.slice(0, 2);
     var pureCode = fullCode.slice(2);
     var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,' + days + ',qfq';
-    try {
-      window._debug && _debug("Fetching kline: " + url);
-      var resp = await fetch(url);
-      window._debug && _debug("Kline status: " + resp.status);
-      var text = await resp.text();
-      window._debug && _debug("Kline response len: " + text.length);
-      var match = text.match(/=(\{.+\})/s);
-      if (!match) return [];
-      var data = JSON.parse(match[1]);
-      if (data.code !== 0 || !data.data || !data.data[pureCode]) return [];
-      var klineData = data.data[pureCode];
-      var dayData = klineData.qfqday || klineData.day || [];
-      return dayData.map(function(d) {
-        return { date: d[0], open: parseFloat(d[1]), close: parseFloat(d[2]), high: parseFloat(d[3]), low: parseFloat(d[4]), volume: parseFloat(d[5]) };
-      });
-    } catch (e) {
-      console.error('Kline fetch error:', e);
-      return [];
-    }
+    _debug && _debug('Kline URL: ' + url);
+
+    return new Promise(function(resolve) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          _debug && _debug('XHR status: ' + xhr.status + ' len: ' + (xhr.responseText || '').length);
+          if (xhr.status === 200 && xhr.responseText) {
+            try {
+              var match = xhr.responseText.match(/=(\{.+\})/s);
+              if (match) {
+                var data = JSON.parse(match[1]);
+                if (data.code === 0 && data.data && data.data[pureCode]) {
+                  var dayData = data.data[pureCode].qfqday || data.data[pureCode].day || [];
+                  _debug && _debug('Kline bars: ' + dayData.length);
+                  resolve(dayData.map(function(d) {
+                    return { date: d[0], open: parseFloat(d[1]), close: parseFloat(d[2]), high: parseFloat(d[3]), low: parseFloat(d[4]), volume: parseFloat(d[5]) };
+                  }));
+                  return;
+                }
+              }
+              _debug && _debug('Kline parse failed');
+            } catch(e) {
+              _debug && _debug('Kline error: ' + e.message);
+            }
+          }
+          resolve([]);
+        }
+      };
+      xhr.onerror = function() {
+        _debug && _debug('XHR network error');
+        resolve([]);
+      };
+      xhr.send();
+    });
   }
 
   function parseKlineData(dayData) {
