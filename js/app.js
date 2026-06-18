@@ -96,6 +96,7 @@ const App = (() => {
         var kline = Storage.getCachedKline(code);
         if (!kline) {
           kline = await StockAPI.fetchKline(code, 120);
+          _debug("Kline fetched for " + code + ": " + kline.length + " bars");
           if (kline.length > 0) Storage.setCachedKline(code, kline);
         }
 
