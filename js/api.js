@@ -42,8 +42,11 @@ const StockAPI = (() => {
     var fullCodes = codes.map(function(c) { return getFullCode(c); });
     var url = BASE_URL + fullCodes.join(',');
     try {
+      window._debug && _debug("Fetching kline: " + url);
       var resp = await fetch(url);
+      window._debug && _debug("Kline status: " + resp.status);
       var text = await resp.text();
+      window._debug && _debug("Kline response len: " + text.length);
       return parseQuotes(text);
     } catch (err) {
       console.error('Quotes error:', err);
@@ -84,14 +87,18 @@ const StockAPI = (() => {
   // Fetch K-line: try script injection, fallback to fetch
   // Fetch K-line data (CORS-enabled API)
   async function fetchKline(code, days) {
+    window._debug && _debug("fetchKline called: " + code);
     days = days || 120;
     var fullCode = getFullCode(code);
     var market = fullCode.slice(0, 2);
     var pureCode = fullCode.slice(2);
     var url = KLINE_URL + '?_var=kline_dayqfq&param=' + market + pureCode + ',day,,,' + days + ',qfq';
     try {
+      window._debug && _debug("Fetching kline: " + url);
       var resp = await fetch(url);
+      window._debug && _debug("Kline status: " + resp.status);
       var text = await resp.text();
+      window._debug && _debug("Kline response len: " + text.length);
       var match = text.match(/=(\{.+\})/s);
       if (!match) return [];
       var data = JSON.parse(match[1]);
