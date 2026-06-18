@@ -103,7 +103,10 @@ const StockAPI = (() => {
           _debug && _debug('XHR status: ' + xhr.status + ' len: ' + (xhr.responseText || '').length);
           if (xhr.status === 200 && xhr.responseText) {
             try {
-              var match = xhr.responseText.match(/=(\{.+\})/s);
+              var text = xhr.responseText;
+            var start = text.indexOf("{");
+            var end = text.lastIndexOf("}");
+            var match = (start >= 0 && end > start) ? [null, text.substring(start, end + 1)] : null;
               if (match) {
                 var data = JSON.parse(match[1]);
                 if (data.code === 0 && data.data && data.data[pureCode]) {
