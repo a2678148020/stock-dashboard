@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>K线测试</title></head>
+<body style="background:#1a2736;color:#fff;font-family:sans-serif;padding:20px;">
+<h1>K线数据测试</h1>
+<div id="log" style="font-size:14px;line-height:1.8;"></div>
+<script>
+var log = document.getElementById('log');
+function out(msg) { log.innerHTML += msg + '<br>'; }
+
+out('1. 开始测试...');
+
+// Test kline fetch
+var code = '002466';
+var market = 'sz';
+var url = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayqfq&param=' + market + code + ',day,,,120,qfq';
+out('2. 请求URL: ' + url);
+
+fetch(url).then(function(resp) {
+  out('3. 响应状态: ' + resp.status);
+  return resp.text();
+}).then(function(text) {
+  out('4. 响应长度: ' + text.length + ' 字节');
+  out('5. 前100字符: ' + text.substring(0, 100));
+
+  var match = text.match(/=(\{.+\})/s);
+  if (!match) {
+    out('❌ JSON解析失败 - 没有找到JSON');
+    return;
+  }
+  out('6. JSON匹配成功');
+
+  var data = JSON.parse(match[1]);
+  out('7. code: ' + data.code);
+
+  if (!data.data || !data.data[code]) {
+    out('❌ 没有找到 ' + code + ' 的数据');
+    return;
+  }
+
+  var klineData = data.data[code];
+  var dayData = klineData.qfqday || klineData.day || [];
+  out('8. K线数据条数: ' + dayData.length);
+
+  if (dayData.length > 0) {
+    out('9. 最新数据: ' + JSON.stringify(dayData[dayData.length - 1]));
+    out('✅ K线数据获取成功!');
+
+    // Calculate MACD
+    var closes = dayData.map(function(d) { return parseFloat(d[2]); });
+    out('10. 收盘价数量: ' + closes.length);
+
+    // Simple EMA calculation
+    function ema(data, period) {
+      var result = [];
+      var m = 2 / (period + 1);
+      var sum = 0;
+      for (var i = 0; i < period && i < data.length; i++) sum += data[i];
+      result[period - 1] = sum / period;
+      for (var i = period; i < data.length; i++) {
+        result[i] = (data[i] - result[i - 1]) * m + result[i - 1];
+      }
+      return result;
+    }
+
+    var ema12 = ema(closes, 12);
+    var ema26 = ema(closes, 26);
+    var dif = [];
+    for (var i = 0; i < closes.length; i++) {
+      if (ema12[i] !== undefined && ema26[i] !== undefined) {
+        dif[i] = ema12[i] - ema26[i];
+      }
+    }
+    var validDif = dif.filter(function(v) { return v !== undefined; });
+    var dea = ema(validDif, 9);
+
+    var lastDif = validDif[validDif.length - 1];
+    var lastDea = dea[dea.length - 1];
+    var lastMacd = 2 * (lastDif - lastDea);
+
+    out('11. MACD DIF: ' + (lastDif ? lastDif.toFixed(3) : 'null'));
+    out('12. MACD DEA: ' + (lastDea ? lastDea.toFixed(3) : 'null'));
+    out('13. MACD 柱: ' + (lastMacd ? lastMacd.toFixed(3) : 'null'));
+    out('✅ MACD计算成功!');
+  }
+}).catch(function(err) {
+  out('❌ 请求失败: ' + err.message);
+});
+</script>
+</body>
+</html>
