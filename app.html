@@ -11,7 +11,7 @@
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="manifest.json">
 <title>股票看板</title>
-<script>if(localStorage.getItem("sw_version")!=="v10"){localStorage.setItem("sw_version","v10");location.reload(true)}</script>
+<script>if(localStorage.getItem("sw_version")!=="v11"){localStorage.setItem("sw_version","v11");location.reload(true)}</script>
 <style>
 /* === Reset & Base === */
 *, *::before, *::after {
@@ -775,6 +775,7 @@ body {
 <body>
 
 
+
 <div id="debugOverlay" onclick="_showDebug()" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.9);color:#0f0;font-size:11px;padding:8px;z-index:9999;max-height:40vh;overflow-y:auto;font-family:monospace;"></div>
 
 
@@ -859,6 +860,7 @@ body {
     <div class="modal-footer"><button class="btn btn-primary" id="btnSaveSettings">保存</button></div>
   </div>
 </div>
+
 
 
 
@@ -976,7 +978,10 @@ const StockAPI = (() => {
           _debug && _debug('XHR status: ' + xhr.status + ' len: ' + (xhr.responseText || '').length);
           if (xhr.status === 200 && xhr.responseText) {
             try {
-              var match = xhr.responseText.match(/=(\{.+\})/s);
+              var text = xhr.responseText;
+            var start = text.indexOf("{");
+            var end = text.lastIndexOf("}");
+            var match = (start >= 0 && end > start) ? [null, text.substring(start, end + 1)] : null;
               if (match) {
                 var data = JSON.parse(match[1]);
                 if (data.code === 0 && data.data && data.data[pureCode]) {
